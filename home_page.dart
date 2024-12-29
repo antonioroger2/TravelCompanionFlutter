@@ -3,7 +3,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'dart:convert';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
@@ -100,35 +99,6 @@ class _HomeScreenState extends State<HomeScreen>
         centerTitle: true,
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.black87,
-        actions: [
-          GestureDetector(
-            onTapDown: (TapDownDetails details) {
-              _showProfileMenu(context, details.globalPosition);
-            },
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.person,
-                    size: 30.0,
-                    color: Colors.black,
-                  ),
-                  const SizedBox(height: 2.0), // Space between icon and text
-                  const Text(
-                    'Profile',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.black,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
       body: Stack(
         children: [
@@ -184,10 +154,74 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ],
       ),
+      bottomNavigationBar: BottomAppBar(
+        elevation: 8,
+        color: Colors.white.withOpacity(0.2),
+        child: SizedBox(
+          height: 50, 
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _currentTab = 0;
+                  });
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment:
+                      MainAxisAlignment.center, 
+                  children: [
+                    Icon(
+                      Icons.search,
+                      size: 30.0,
+                      color: _currentTab == 0 ? Colors.black : Colors.black,
+                    ),
+                    Text(
+                      'Search',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _currentTab == 0 ? Colors.black : Colors.black54,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              GestureDetector(
+                onTapDown: (TapDownDetails details) {
+                  _showProfileMenu(context, details.globalPosition);
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment:
+                      MainAxisAlignment.center, 
+                  children: [
+                    Icon(
+                      Icons.person,
+                      size: 30.0,
+                      color: _currentTab == 1 ? Colors.black : Colors.black,
+                    ),
+                    Text(
+                      'Profile',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _currentTab == 1 ? Colors.black : Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
-// Function to show the profile menu
+
   void _showProfileMenu(BuildContext context, Offset position) async {
     final selected = await showMenu<String>(
       context: context,
@@ -211,21 +245,21 @@ class _HomeScreenState extends State<HomeScreen>
 
     if (selected == 'Profile Info') {
       Navigator.pushNamed(context,
-          '/editProf'); // Navigate to Profile Info page using route name
+          '/editProf'); 
     } else if (selected == 'Logout') {
       _logout(context);
     }
   }
 
-  // Function to log out the user
+
   Future<void> _logout(BuildContext context) async {
     try {
-      await FirebaseAuth.instance.signOut(); // Firebase sign out
-      // After signing out, navigate to the login page
+      await FirebaseAuth.instance.signOut(); 
+
       Navigator.of(context).pushNamedAndRemoveUntil(
-        '/login_page', // Make sure this matches the route defined in your MaterialApp
+        '/login_page', 
         (Route<dynamic> route) =>
-            false, // Remove all previous routes from the stack
+            false, 
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -344,14 +378,13 @@ class _LocationAlertsWeatherState extends State<LocationAlertsWeather>
   String district = '';
   String weatherDescription = 'Loading...';
   IconData weatherIcon =
-      Icons.not_listed_location_sharp; // Default weather icon
-  Color iconColor = Colors.grey; // Default icon color
+      Icons.not_listed_location_sharp; 
+  Color iconColor = Colors.grey; 
   bool isLoading = true;
   String alertMessage = "No alerts available";
-  bool isExpanded = false; // To track the expansion state
-
+  bool isExpanded = false; 
   final String pythonApiUrl =
-      'http://68.178.238.26:8000/scrape'; // Python server URL
+      'http://68.178.238.26:8000/scrape'; 
 
   @override
   void initState() {
@@ -368,7 +401,7 @@ class _LocationAlertsWeatherState extends State<LocationAlertsWeather>
       await _fetchLocationAndWeather();
 
       setState(() {
-        isLoading = false; // Stop loading once data is fetched
+        isLoading = false;
       });
     } catch (e) {
       print("Initialization error: $e");
@@ -427,7 +460,7 @@ class _LocationAlertsWeatherState extends State<LocationAlertsWeather>
           state = " " + (data['address']['state'] ?? '');
         });
 
-        // Fetch alerts after resolving location
+  
         await _fetchAlerts(city + district + state);
       } else {
         throw Exception("Failed to fetch address from Nominatim.");
@@ -438,7 +471,7 @@ class _LocationAlertsWeatherState extends State<LocationAlertsWeather>
   }
 
   Future<void> _fetchWeather(double lat, double lon) async {
-    final apiKey = '2c46c3bba90211c0e18241f31dd52c79'; // OpenWeatherMap API key
+    final apiKey = '2c46c3bba90211c0e18241f31dd52c79'; 
     final url = Uri.parse(
         'https://api.openweathermap.org/data/2.5/weather?lat=$lat&lon=$lon&appid=$apiKey&units=metric');
 
@@ -579,7 +612,7 @@ class _LocationAlertsWeatherState extends State<LocationAlertsWeather>
                   ),
                 ),
               ),
-              SizedBox(width: 16), // Space between boxes
+              SizedBox(width: 16), 
               // Box 2: Travel Alerts
               Expanded(
                 child: GestureDetector(
@@ -666,7 +699,7 @@ class ExploreFeaturesCarousel extends StatelessWidget {
                     icon: features[index]['icon'],
                     label: features[index]['label'],
                     onTap: () {
-                      // Navigate to the respective route
+
                       String route = features[index]['route'];
                       switch (route) {
                         case 'explore':
@@ -687,7 +720,7 @@ class ExploreFeaturesCarousel extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (context) => ReportScamsPage()),
+                                builder: (context) => ScamReportPage()),
                           );
                           break;
                         case 'travel_expense':
@@ -718,6 +751,7 @@ class ExploreFeaturesCarousel extends StatelessWidget {
   }
 }
 
+
 class HoverAnimatedBox extends StatefulWidget {
   final IconData icon;
   final String label;
@@ -738,69 +772,68 @@ class _HoverAnimatedBoxState extends State<HoverAnimatedBox> {
   bool _isHovered = false;
 
   @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: TweenAnimationBuilder<double>(
-          tween: Tween<double>(begin: 0.0, end: _isHovered ? 1.0 : 0.0),
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-          builder: (context, value, child) {
-            return Transform.scale(
-              scale: 1 + (value * 0.1), // Smooth scale animation
-              child: Transform.rotate(
-                angle: value * 0.785, // Rotate to 45 degrees
-                child: Container(
-                  width: 160.0,
-                  height: 160.0,
-                  margin: const EdgeInsets.symmetric(horizontal: 20.0),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20.0),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 10.0 + (value * 5.0),
-                        offset: const Offset(0, 4),
+Widget build(BuildContext context) {
+  return MouseRegion(
+    onEnter: (_) => setState(() => _isHovered = true),
+    onExit: (_) => setState(() => _isHovered = false),
+    child: GestureDetector(
+      onTap: widget.onTap,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween<double>(begin: 0.0, end: _isHovered ? 1.0 : 0.0),
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        builder: (context, value, child) {
+          return Transform.scale(
+            scale: 1 + (value * 0.1), 
+            child: Transform.rotate(
+              angle: value * 0.785, 
+              child: Container(
+                width: 160.0,
+                height: 160.0,
+                margin: const EdgeInsets.symmetric(horizontal: 20.0),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20.0),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 10.0 + (value * 5.0),
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Transform.rotate(
+                  angle: -(value * 0.785), 
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        widget.icon,
+                        size: 45.0,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(height: 12.0),
+                      Text(
+                        widget.label,
+                        style: const TextStyle(
+                          fontSize: 16.0,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
-                  child: Transform.rotate(
-                    angle: -(value * 0.785), // Reverse rotation for content
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          widget.icon,
-                          size: 45.0,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(height: 12.0),
-                        Text(
-                          widget.label,
-                          style: const TextStyle(
-                            fontSize: 16.0,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
               ),
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
-    );
-  }
+    ),
+  );
 }
-
+}
 class DestinationCarousel extends StatelessWidget {
   final List<Map<String, String>> destinations = [
     {'image': 'assets/carousel/picture1(4).jpg', 'name': 'London, UK'},
@@ -811,10 +844,7 @@ class DestinationCarousel extends StatelessWidget {
     {'image': 'assets/carousel/picture1(6).jpg', 'name': 'Toronto, Canada'},
     {'image': 'assets/carousel/picture1(4).jpg', 'name': 'Bengaluru, India'},
     {'image': 'assets/carousel/picture1(5).jpg', 'name': 'Kolkata, India'},
-    {
-      'image': 'assets/carousel/picture1(6).jpg',
-      'name': 'Rio de Janeiro, Brazil'
-    }
+    {'image': 'assets/carousel/picture1(6).jpg', 'name': 'Rio de Janeiro, Brazil'}
   ];
 
   @override
@@ -937,6 +967,7 @@ class _TravelPlannerPageState extends State<TravelPlannerPage>
 
   @override
   Widget build(BuildContext context) {
+
     final cityImages = {
       'London, UK': 'assets/carousel/picture1(4).jpg',
       'Sydney, Australia': 'assets/carousel/picture1(5).jpg',
@@ -948,6 +979,7 @@ class _TravelPlannerPageState extends State<TravelPlannerPage>
       'Kolkata, India': 'assets/carousel/picture1(5).jpg',
       'Rio de Janeiro, Brazil': 'assets/carousel/picture1(6).jpg',
     };
+
 
     final imagePath = cityImages[widget.cityName] ?? 'assets/default_image.jpg';
 
@@ -990,8 +1022,7 @@ class _TravelPlannerPageState extends State<TravelPlannerPage>
                 );
               },
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 30.0, vertical: 15.0),
+                padding: const EdgeInsets.symmetric(horizontal: 30.0, vertical: 15.0),
                 textStyle: const TextStyle(fontSize: 16),
               ),
               child: const Text('Start Planning'),
@@ -1003,50 +1034,33 @@ class _TravelPlannerPageState extends State<TravelPlannerPage>
   }
 }
 
-class Footer extends StatelessWidget {
-  void _sendEmail() async {
-    const email = 'mailto:asafetyguide.com';
-    if (await canLaunch(email)) {
-      await launch(email);
-    } else {
-      throw 'Could not launch $email';
-    }
-  }
 
+class Footer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
       child: Column(
-        children: [
-          const SizedBox(height: 60.0),
-          const Text(
+        children: const [
+          SizedBox(height: 60.0),
+          Text(
             'Made by : Manisha, Antonio Roger, Akshith',
             style: TextStyle(fontSize: 19.0, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 10.0),
-          GestureDetector(
-            onTap: _sendEmail,
-            child: const Text(
-              'Email: asafetyguide.com',
-              style: TextStyle(color: Colors.black),
-            ),
-          ),
-          const SizedBox(height: 10.0),
+          SizedBox(height: 10.0),
+          Text('Email: asafetyguide.com'),
+          SizedBox(height: 10.0),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              IconButton(
-                icon: const Icon(Icons.email),
-                onPressed: _sendEmail,
-              ),
-              const SizedBox(width: 10.0),
-              const Icon(Icons.facebook),
-              const SizedBox(width: 10.0),
-              const Icon(Icons.icecream_outlined),
+              Icon(Icons.email),
+              SizedBox(width: 10.0),
+              Icon(Icons.facebook),
+              SizedBox(width: 10.0),
+              Icon(Icons.icecream_outlined),
             ],
           ),
-          const SizedBox(height: 20.0),
+          SizedBox(height: 20.0),
         ],
       ),
     );
