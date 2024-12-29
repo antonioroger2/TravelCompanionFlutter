@@ -3,6 +3,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:intl/intl.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -10,124 +13,57 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(MaterialApp(home: ReportScamsPage()));
+  runApp(MaterialApp(
+    theme: ThemeData(
+      primarySwatch: Colors.blue,
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: const Color.fromRGBO(255, 255, 255, 0.907),
+
+      cardTheme: CardTheme(
+        elevation: 4,
+        color: Colors.white,
+        margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.blue, width: 2),
+        ),
+      ),
+    ),
+    home: ScamReportPage(),
+    debugShowCheckedModeBanner: false,
+  ));
 }
 
-class ReportScamsPage extends StatefulWidget {
+class ScamReportPage extends StatefulWidget {
   @override
-  _ReportScamsPageState createState() => _ReportScamsPageState();
+  _ScamReportPageState createState() => _ScamReportPageState();
 }
 
-class _ReportScamsPageState extends State<ReportScamsPage> {
+class _ScamReportPageState extends State<ScamReportPage> {
   final TextEditingController locationController = TextEditingController();
   final TextEditingController contentController = TextEditingController();
   final TextEditingController searchController = TextEditingController();
 
   bool isLoading = true;
+  bool isSubmitting = false;
+  bool showReportForm = true;
+  bool showSearchForm = true;
   String firstName = 'Guest';
-
-  final List<String> citySuggestions = [
-    "Paris, France",
-    "Dubai, United Arab Emirates",
-    "Madrid, Spain",
-    "Tokyo, Japan",
-    "Amsterdam, Netherlands",
-    "Berlin, Germany",
-    "Rome, Italy",
-    "New York City",
-    "Barcelona, Spain",
-    "London, United Kingdom",
-    "Singapore",
-    "Munich, Germany",
-    "Milan, Italy",
-    "Seoul, South Korea",
-    "Dublin, Ireland",
-    "Osaka, Japan",
-    "Hong Kong",
-    "Vienna, Austria",
-    "Los Angeles",
-    "Lisbon, Portugal",
-    "Prague, Czech Republic",
-    "Sydney, Australia",
-    "Istanbul, Turkey",
-    "Melbourne, Australia",
-    "Orlando, Florida",
-    "Frankfurt, Germany",
-    "Kyoto, Japan",
-    "Taipei, Taiwan",
-    "Florence, Italy",
-    "Toronto, Canada",
-    "Athens, Greece",
-    "Zurich, Switzerland",
-    "Bangkok, Thailand",
-    "Las Vegas",
-    "Miami",
-    "Kuala Lumpur, Malaysia",
-    "Venice, Italy",
-    "Abu Dhabi, United Arab Emirates",
-    "Stockholm, Sweden",
-    "Brussels, Belgium",
-    "Tel Aviv, Israel",
-    "San Francisco",
-    "Shanghai, China",
-    "Warsaw, Poland",
-    "Guangzhou, China",
-    "Copenhagen, Denmark",
-    "Nice, France",
-    "Washington, United States",
-    "Budapest, Hungary",
-    "Shenzhen, China",
-    "Vancouver, Canada",
-    "Palma de Mallorca, Spain",
-    "Seville, Spain",
-    "São Paulo, Brazil",
-    "Valencia, Spain",
-    "Mexico City, Mexico",
-    "Antalya, Turkey",
-    "Sapporo, Japan",
-    "Beijing, China",
-    "Busan, South Korea",
-    "Fukuoka, Japan",
-    "Edinburgh, United Kingdom",
-    "Porto, Portugal",
-    "Jerusalem, Israel",
-    "Kraków, Poland",
-    "Rio de Janeiro, Brazil",
-    "Honolulu, Hawaii",
-    "Montreal, Canada",
-    "Macau",
-    "Cancún, Mexico",
-    "Marne-La-Vallée, France",
-    "Doha, Qatar",
-    "Sharjah, United Arab Emirates",
-    "Rhodes, Greece",
-    "Verona, Italy",
-    "Bologna, Italy",
-    "Thessaloniki, Greece",
-    "Buenos Aires, Argentina",
-    "Lima, Peru",
-    "Phuket, Thailand",
-    "Delhi, India",
-    "Heraklion, Greece",
-    "Tallinn, Estonia",
-    "Pattaya-Chonburi, Thailand",
-    "Ho Chi Minh City, Vietnam",
-    "Playa Del Carmen, Mexico",
-    "Johor Bahru, Malaysia",
-    "Santiago, Chile",
-    "Tbilisi, Georgia",
-    "Riyadh, Saudi Arabia",
-    "Marrakech, Morocco",
-    "Vilnius, Lithuania",
-    "Mugla, Turkey",
-    "Zhuhai, China",
-    "Mecca, Saudi Arabia",
-    "Punta Cana, Dominican Republic",
-    "Guilin, China",
-    "Hanoi, Vietnam",
-    "Cairo, Egypt",
-    "Muscat, Oman"
-  ];
+  List<Map<String, dynamic>> searchResults = [];
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -153,7 +89,7 @@ class _ReportScamsPageState extends State<ReportScamsPage> {
         }
       }
     } catch (e) {
-      print("Error fetching user data: $e");
+      _showErrorSnackBar('Error fetching user data');
     } finally {
       setState(() {
         isLoading = false;
@@ -161,14 +97,52 @@ class _ReportScamsPageState extends State<ReportScamsPage> {
     }
   }
 
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.white),
+            SizedBox(width: 8),
+            Text(message),
+          ],
+        ),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle_outline, color: Colors.white),
+            SizedBox(width: 8),
+            Text(message),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
   Future<void> reportScam() async {
+    if (isSubmitting) return;
+
+    setState(() {
+      isSubmitting = true;
+    });
+
     try {
       User? user = FirebaseAuth.instance.currentUser;
 
       if (user == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('You must be logged in to report a scam')),
-        );
+        _showErrorSnackBar('You must be logged in to report a scam');
         return;
       }
 
@@ -176,9 +150,7 @@ class _ReportScamsPageState extends State<ReportScamsPage> {
       final content = contentController.text.trim();
 
       if (location.isEmpty || content.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Please fill in all fields')),
-        );
+        _showErrorSnackBar('Please fill in all fields');
         return;
       }
 
@@ -189,161 +161,461 @@ class _ReportScamsPageState extends State<ReportScamsPage> {
         'timestamp': FieldValue.serverTimestamp(),
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Scam reported successfully!')),
-      );
+      _showSuccessSnackBar('Scam reported successfully!');
 
       locationController.clear();
       contentController.clear();
+      
+
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: Duration(milliseconds: 500),
+        curve: Curves.easeOut,
+      );
+      
+
+      await performSearch(location);
     } catch (e) {
-      print("Error reporting scam: $e");
+      _showErrorSnackBar('Error reporting scam');
+    } finally {
+      setState(() {
+        isSubmitting = false;
+      });
     }
   }
 
-  Stream<QuerySnapshot> searchScams(String query) {
-    if (query.isEmpty) {
-      return FirebaseFirestore.instance
+  Future<List<String>> fetchSuggestions(String query) async {
+    if (query.isEmpty) return [];
+    const apiKey = '492cdff6b79e46adb5938059495eacc9';
+    final url = Uri.parse(
+        'https://api.opencagedata.com/geocode/v1/json?q=$query&key=$apiKey&limit=2');
+    
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return List<String>.from(
+          data['results'].map((result) => result['formatted'] ?? ''),
+        );
+      } else {
+        print('Error fetching suggestions: ${response.statusCode}');
+        return [];
+      }
+    } catch (e) {
+      print('Error fetching suggestions: $e');
+      return [];
+    }
+  }
+
+  Future<void> performSearch(String query) async {
+    if (query.isEmpty) return;
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final normalizedQuery = query.toLowerCase();
+
+      QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('scams')
           .orderBy('timestamp', descending: true)
-          .snapshots();
-    } else {
-      return FirebaseFirestore.instance
-          .collection('scams')
-          .where('location', isEqualTo: query)
-          .snapshots();
+          .get();
+
+      final filteredScams = snapshot.docs.where((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        final location = (data['location'] ?? '').toString().toLowerCase();
+        final content = (data['content'] ?? '').toString().toLowerCase();
+
+        return location.contains(normalizedQuery) ||
+               normalizedQuery.contains(location) ||
+               content.contains(normalizedQuery);
+      }).map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return {
+          ...data,
+          'id': doc.id,
+          'timestamp': data['timestamp']?.toDate(),
+        };
+      }).toList();
+
+      setState(() {
+        searchResults = filteredScams;
+      });
+    } catch (e) {
+      _showErrorSnackBar('Error searching for scams');
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Report Scams'),
-        backgroundColor: Color(0xFF1E88E5),
-      ),
-      body: isLoading
-          ? Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Welcome, $firstName',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF424242),
-                      ),
-                    ),
-                    SizedBox(height: 20),
-                    Text(
-                      'Report a Scam',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF424242),
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    TextField(
-                      controller: locationController,
-                      decoration: InputDecoration(
-                        labelText: 'Location',
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    TextField(
-                      controller: contentController,
-                      decoration: InputDecoration(
-                        labelText: 'Scam Details',
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    ElevatedButton(
-                      onPressed: reportScam,
-                      child: Text('Submit'),
-                      style: ElevatedButton.styleFrom(
-                        padding:
-                            EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        elevation: 4,
-                      ),
-                    ),
-                    SizedBox(height: 20),
-                    Text(
-                      'Search Reported Scams',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF424242),
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    TypeAheadField(
-                      textFieldConfiguration: TextFieldConfiguration(
-                        controller: searchController,
-                        decoration: InputDecoration(
-                          labelText: 'Search by Location',
-                          suffixIcon:
-                              Icon(Icons.search, color: Color(0xFF1E88E5)),
-                        ),
-                      ),
-                      suggestionsCallback: (pattern) {
-                        return citySuggestions.where((city) =>
-                            city.toLowerCase().contains(pattern.toLowerCase()));
-                      },
-                      itemBuilder: (context, String suggestion) {
-                        return ListTile(title: Text(suggestion));
-                      },
-                      onSuggestionSelected: (String suggestion) {
-                        searchController.text = suggestion;
-                        setState(() {});
-                      },
-                      noItemsFoundBuilder: (context) => Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Text(
-                          'No matching locations.',
-                          style: TextStyle(color: Color(0xFF757575)),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    StreamBuilder<QuerySnapshot>(
-                      stream: searchScams(searchController.text.trim()),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
-                          return Center(child: CircularProgressIndicator());
-                        }
-
-                        final scams = snapshot.data!.docs;
-
-                        if (scams.isEmpty) {
-                          return Text('No scams found.');
-                        }
-
-                        return ListView.builder(
-                          shrinkWrap: true,
-                          physics: NeverScrollableScrollPhysics(),
-                          itemCount: scams.length,
-                          itemBuilder: (context, index) {
-                            final scam = scams[index];
-                            return Card(
-                              margin: EdgeInsets.symmetric(vertical: 8),
-                              child: ListTile(
-                                title: Text(scam['location']),
-                                subtitle: Text(scam['content']),
-                              ),
-                            );
-                          },
-                        );
-                      },
+        elevation: 0,
+        title: Row(
+          children: [
+              IconButton(
+                icon: Icon(Icons.arrow_back),
+                color: Colors.white,
+                onPressed: () {
+                  // home
+                },
+              ),
+            Text(
+                '  Scam Alerts',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: const Color.fromARGB(221, 255, 255, 255), 
+                  letterSpacing: 1.2,
+                  shadows: [
+                    Shadow(
+                      blurRadius: 10.0,
+                      color: Colors.grey.withOpacity(0.1),
+                      offset: Offset(2, 2),
                     ),
                   ],
                 ),
+                textAlign: TextAlign.center,
+              )
+
+          ],
+        ),
+        backgroundColor: Colors.blue[600],
+      ),
+      body: isLoading
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Loading...'),
+                ],
+              ),
+            )
+          : SingleChildScrollView(
+              controller: _scrollController,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[600],
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(32),
+                        bottomRight: Radius.circular(32),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Welcome,',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white70,
+                          ),
+                        ),
+                        Text(
+                          firstName,
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Card(
+                          child: Column(
+                            children: [
+                              ListTile(
+                                title: Row(
+                                  children: [
+                                    Icon(Icons.warning_amber_rounded, 
+                                         color: Colors.orange),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Report a Scam',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                trailing: IconButton(
+                                  icon: Icon(
+                                    showReportForm 
+                                        ? Icons.keyboard_arrow_up 
+                                        : Icons.keyboard_arrow_down,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      showReportForm = !showReportForm;
+                                    });
+                                  },
+                                ),
+                              ),
+                              if (showReportForm)
+                                Padding(
+                                  padding: EdgeInsets.all(16),
+                                  child: Column(
+                                    children: [
+                                      TypeAheadField(
+                                        textFieldConfiguration: TextFieldConfiguration(
+                                          controller: locationController,
+                                          decoration: InputDecoration(
+                                            labelText: 'Location',
+                                            prefixIcon: Icon(Icons.location_pin),
+                                          ),
+                                        ),
+                                        suggestionsCallback: fetchSuggestions,
+                                        itemBuilder: (context, String suggestion) {
+                                          return ListTile(
+                                            leading: Icon(Icons.location_on),
+                                            title: Text(suggestion),
+                                          );
+                                        },
+                                        onSuggestionSelected: (String suggestion) {
+                                          locationController.text = suggestion;
+                                        },
+                                      ),
+                                      SizedBox(height: 16),
+                                      TextField(
+                                        controller: contentController,
+                                        decoration: InputDecoration(
+                                          labelText: 'Describe the scam in detail...',
+                                          alignLabelWithHint: true,
+                                        ),
+                                        maxLines: 4,
+                                      ),
+                                     SizedBox(height: 16),
+SizedBox(
+  width: double.infinity,
+  child: ElevatedButton(
+    onPressed: isSubmitting ? null : reportScam,
+    child: Padding(
+      padding: EdgeInsets.symmetric(vertical: 16),
+      child: isSubmitting
+          ? SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            )
+          : Text(
+              'Submit Report',
+              style: TextStyle(fontSize: 16),
+            ),
+    ),
+    style: ElevatedButton.styleFrom(
+      backgroundColor: Colors.white.withOpacity(0.9), 
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+    ),
+  ),
+),
+
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 24),
+                        Card(
+                          child: Column(
+                            children: [
+                              ListTile(
+                                title: Row(
+                                  children: [
+                                    Icon(Icons.search, color: Colors.blue),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Search Reported Scams',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                trailing: IconButton(
+                                  icon: Icon(
+                                    showSearchForm 
+                                        ? Icons.keyboard_arrow_up 
+                                        : Icons.keyboard_arrow_down,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      showSearchForm = !showSearchForm;
+                                    });
+                                  },
+                                ),
+                              ),
+                              if (showSearchForm)
+                                Padding(
+                                  padding: EdgeInsets.all(16),
+                                  child: Column(
+                                    children: [
+                                      TypeAheadField(
+                                        textFieldConfiguration: TextFieldConfiguration(
+                                          controller: searchController,
+                                          decoration: InputDecoration(
+                                            labelText: 'Search by Location or Content',
+                                            prefixIcon: Icon(Icons.search),
+                                          ),
+                                        ),
+                                        suggestionsCallback: fetchSuggestions,
+                                        itemBuilder: (context, String suggestion) {
+                                          return ListTile(
+                                            leading: Icon(Icons.location_on),
+                                            title: Text(suggestion),
+                                          );
+                                        },
+                                        onSuggestionSelected: (String suggestion) {
+                                          searchController.text = suggestion;
+                                          performSearch(suggestion);
+                                        },
+                                      ),
+                                      SizedBox(height: 16),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: ElevatedButton.icon(
+                                          onPressed: () {
+                                            performSearch(searchController.text.trim());
+                                            setState(() {
+                                              showReportForm = false;
+                                              showSearchForm = false;
+                                            });
+                                          },
+                                          icon: Icon(Icons.search),
+                                          label: Text('Search'),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.white.withOpacity(0.9), 
+                                            padding: EdgeInsets.symmetric(vertical: 16),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        if (searchResults.isNotEmpty) ...[
+                          SizedBox(height: 16),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 16),
+                            child: Text(
+                              'Search Results',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: NeverScrollableScrollPhysics(),
+                            itemCount: searchResults.length,
+                            itemBuilder: (context, index) {
+                              final result = searchResults[index];
+                              final timestamp = result['timestamp'] as DateTime?;
+                              final formattedDate = timestamp != null
+                                  ? DateFormat('MMM d, yyyy h:mm a').format(timestamp)
+                                  : 'Date unknown';
+                              
+                              return Card(
+                                child: Padding(
+                                  padding: EdgeInsets.all(16),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(Icons.location_on, 
+                                               color: Colors.blue[600]),
+                                          SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              result['location'] ?? 'Unknown Location',
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        result['content'] ?? 'No Details',
+                                        style: TextStyle(fontSize: 16),
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        formattedDate,
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ] else if (searchController.text.isNotEmpty) ...[
+                          Center(
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.search_off,
+                                  size: 64,
+                                  color: Colors.grey[400],
+                                ),
+                                SizedBox(height: 16),
+                                Text(
+                                  'No scams reported in this area yet.',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        
+
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
     );
